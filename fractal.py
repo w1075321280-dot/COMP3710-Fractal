@@ -1,60 +1,40 @@
-
 import math
+fractal_dimension = math.log(3)/math.log(2)
+
+print(
+    "Theoretical fractal dimension:",
+    fractal_dimension
+)
+
 import torch
 import matplotlib.pyplot as plt
 
 
-# Use GPU when CUDA is available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Three vertices of an equilateral triangle
-vertices = torch.tensor(
-    [
-        [0.0, 0.0],
-        [1.0, 0.0],
-        [0.5, math.sqrt(3) / 2]
-    ],
-    dtype=torch.float32,
-    device=device
-)
+width = 1025
+steps = 512
+grid = torch.zeros((steps,width),dtype=torch.int8,device=device)
 
-# Begin at the centre of the triangle
-points = vertices.mean(dim=0, keepdim=True)
+grid[0,width//2] = 1
+#XOR
+for t in range(1, steps):
+    prev = grid[t-1]
+    next_row = torch.zeros_like(prev)
+    next_row[1:-1] = torch.bitwise_xor(prev[:-2], prev[2:])
+    grid[t] = next_row
 
-iterations = 11
+image = grid.cpu().numpy() #cpu
 
-# At each iteration, create three half-sized copies
-for _ in range(iterations):
-    points = (
-        (points[:, None, :] + vertices[None, :, :]) / 2
-    ).reshape(-1, 2)
-
-# Move the final result to CPU for Matplotlib
-points = points.cpu().numpy()
-
-plt.figure(figsize=(10, 9))
-
-plt.scatter(
-    points[:, 0],
-    points[:, 1],
-    s=0.15,
-    c=points[:, 1],
-    cmap="viridis",
-    marker="."
-)
-
-plt.title("Sierpinski Gasket")
-plt.axis("equal")
+plt.figure(figsize=(10, 10))
+plt.imshow(image, cmap="binary", interpolation="nearest", aspect="auto")
+plt.title("Sierpinski Triangle")
 plt.axis("off")
 plt.tight_layout()
 
-plt.savefig(
-    "sierpinski_gasket.png",
-    dpi=300,
-    bbox_inches="tight"
-)
-
+plt.savefig("sierpinski_rule90.png",dpi=300,bbox_inches="tight")
 plt.show()
 
 print("Device:", device)
-print("Number of points:", len(points))
+print("Grid shape:", image.shape)
+print("Alive cells:", image.sum())
